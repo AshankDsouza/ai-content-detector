@@ -1,0 +1,21 @@
+# Install into a Python 3.11 virtual environment:
+#   python3.11 -m venv venv
+#   source venv/bin/activate   (Mac/Linux)
+#   pip install -r requirements.txt
+#   python -m spacy download en_core_web_sm
+
+flask>=3.0.0
+flask-limiter>=3.7.0
+spacy==3.7.5
+textdescriptives==2.8.4
+kagglehub==1.0.2
+scikit-learn==1.9.0
+tensorflow-macos==2.16.2   # Mac Apple-Silicon; replace with tensorflow==2.16.2 on other platforms
+keras==3.15.0
+joblib==1.5.3
+pandas==3.0.3
+numpy==1.26.4
+scipy==1.11.4
+click
+pypdf==4.3.1
+mammoth==1.9.0
