@@ -23,6 +23,7 @@ import textdescriptives as td
 from flask import Flask, request, jsonify, g
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from detection_methods.digital_traces_detection import analyze as analyze_digital_traces
 
 # ── Config ────────────────────────────────────────────────────────────────────
 MODELS_DIR = "models"
@@ -207,6 +208,7 @@ def submit():
 
     try:
         result = run_inference(text)
+        trace_report = analyze_digital_traces(text)
     except Exception as exc:
         logger.exception("Inference failed for new submission")
         return jsonify({"error": f"Inference error: {exc}"}), 500
@@ -250,6 +252,7 @@ def submit():
         "attribution": result["attribution"],
         "confidence": result["confidence"],
         "transparency_label": result["transparency_label"],
+        "trace_detection_report": trace_report,
         "status": "decided",
     }), 200
 
@@ -304,6 +307,9 @@ def appeal(submission_id):
         "message": "Your appeal has been received. The submission is now under review.",
     }), 201
 
+@app.route("/heartbeat", methods=["GET"])
+def heartbeat():
+    return jsonify({"status": "ok"}), 200
 
 @app.route("/log", methods=["GET"])
 def audit_log():
@@ -391,6 +397,8 @@ def audit_log():
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    init_db()
-    load_models()
-    app.run(host="0.0.0.0", port=5001, debug=False)
+    print("initialising the rest api service")
+    #init_db()
+    #load_models()
+    app.run(host="0.0.0.0", port=5001, debug=True)
+    print("Service running on port 5001")

@@ -22,6 +22,8 @@ import re
 import argparse
 import os
 from datetime import datetime, timezone
+from pypdf import PdfReader
+import mammoth
 
 
 # JS creationThresholdDate = new Date('2022-11-22').getTime()
@@ -35,7 +37,6 @@ def read_pdf(path: str) -> str:
         → items.forEach(item => text += (item.str || '') + ' ')
         → text.trim()
     """
-    from pypdf import PdfReader
     reader = PdfReader(path)
     text = ""
     for page in reader.pages:
@@ -52,7 +53,6 @@ def read_docx(path: str) -> str:
         mammoth.extractRawText({arrayBuffer}) → result.value
     Python mammoth is the same library — output is identical.
     """
-    import mammoth
     with open(path, "rb") as fh:
         result = mammoth.extract_raw_text(fh)
     return result.value
@@ -97,14 +97,14 @@ _NNBSP = "\u202F"
 
 
 # JS tool patterns — same 6 regexes, same flags
-AI_TOOLS = {
-    "ChatGPT":    re.compile(r'(?:\bchat[\s-]?gpt\b|chatgpt\b|chat\s+gpt\b)', re.IGNORECASE),
-    "Grammarly":  re.compile(r'\bgrammarly\b(?=\s|[.,;:\/\-]|$)', re.IGNORECASE),
-    "Claude":     re.compile(r'\bclaude\b(?=\s|[.,;:\/\-]|$)', re.IGNORECASE),
-    "Gemini":     re.compile(r'\bgemini\b(?=\s|[.,;:\/\-]|$)', re.IGNORECASE),
-    "Llama/Meta": re.compile(r'\b(llama|meta)\b(?=\s|[.,;:\/\-]|$)', re.IGNORECASE),
-    "Copilot":    re.compile(r'\bcopilot\b(?=\s|[.,;:\/\-]|$)', re.IGNORECASE),
-}
+# AI_TOOLS = {
+#     "ChatGPT":    re.compile(r'(?:\bchat[\s-]?gpt\b|chatgpt\b|chat\s+gpt\b)', re.IGNORECASE),
+#     "Grammarly":  re.compile(r'\bgrammarly\b(?=\s|[.,;:\/\-]|$)', re.IGNORECASE),
+#     "Claude":     re.compile(r'\bclaude\b(?=\s|[.,;:\/\-]|$)', re.IGNORECASE),
+#     "Gemini":     re.compile(r'\bgemini\b(?=\s|[.,;:\/\-]|$)', re.IGNORECASE),
+#     "Llama/Meta": re.compile(r'\b(llama|meta)\b(?=\s|[.,;:\/\-]|$)', re.IGNORECASE),
+#     "Copilot":    re.compile(r'\bcopilot\b(?=\s|[.,;:\/\-]|$)', re.IGNORECASE),
+# }
 
 
 def analyze(text: str) -> dict:
@@ -119,16 +119,16 @@ def analyze(text: str) -> dict:
     regular_traces = len(_CURLY_QUOTES.findall(text))
     nnbsp_traces   = text.count(_NNBSP)
 
-    mentioned        = {t: bool(p.search(text)) for t, p in AI_TOOLS.items()}
-    any_ai_mentioned = any(mentioned.values())
+    # mentioned        = {t: bool(p.search(text)) for t, p in AI_TOOLS.items()}
+    # any_ai_mentioned = any(mentioned.values())
 
     # JS:
     #   if (aiTraces > 0 && noAiMentioned && regularTraces == 0) → red
     #   else if (aiTraces > 0 && noAiMentioned)                  → yellow
     #   else                                                      → green
-    if ascii_traces > 0 and not any_ai_mentioned and regular_traces == 0:
+    if ascii_traces > 0 and regular_traces == 0:
         verdict = "red"
-    elif ascii_traces > 0 and not any_ai_mentioned:
+    elif ascii_traces > 0 and regular_traces > 0:
         verdict = "yellow"
     else:
         verdict = "green"
@@ -137,8 +137,6 @@ def analyze(text: str) -> dict:
         "ascii_traces":       ascii_traces,
         "regular_traces":     regular_traces,
         "nnbsp_traces":       nnbsp_traces,
-        "ai_tools_mentioned": mentioned,
-        "any_ai_mentioned":   any_ai_mentioned,
         "verdict":            verdict,
     }
 
@@ -163,9 +161,6 @@ def print_report(result: dict, label: str = "input") -> None:
     print(f"  ASCII straight quotes : {result['ascii_traces']:>5}   <- potential AI traces")
     print(f"  Curly/typographic     : {result['regular_traces']:>5}   <- human/word-processor")
     print(f"  No-Break Spaces (U+202F): {result['nnbsp_traces']:>5}   <- potential AI traces")
-    print()
-    for tool, detected in result["ai_tools_mentioned"].items():
-        print(f"  {tool:20s}: {'Yes' if detected else 'No'}")
     print()
     print(f"  Verdict: {color}{_VERDICT_LABEL[v]}{_RESET}")
     print()
