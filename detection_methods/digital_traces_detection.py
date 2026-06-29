@@ -92,6 +92,10 @@ _ASCII_QUOTES = re.compile(r'[\'\"]')
 #   " U+201C  " U+201D  ' U+2018  ' U+2019
 _CURLY_QUOTES = re.compile(r'[""'']')
 
+# No-Break Space (NNBSP, U+202F) character — used in some AI-generated text (e.g., ChatGPT) as a "signature" space
+_NNBSP = "\u202F"
+
+
 # JS tool patterns — same 6 regexes, same flags
 AI_TOOLS = {
     "ChatGPT":    re.compile(r'(?:\bchat[\s-]?gpt\b|chatgpt\b|chat\s+gpt\b)', re.IGNORECASE),
@@ -113,6 +117,7 @@ def analyze(text: str) -> dict:
     """
     ascii_traces   = len(_ASCII_QUOTES.findall(text))
     regular_traces = len(_CURLY_QUOTES.findall(text))
+    nnbsp_traces   = text.count(_NNBSP)
 
     mentioned        = {t: bool(p.search(text)) for t, p in AI_TOOLS.items()}
     any_ai_mentioned = any(mentioned.values())
@@ -131,6 +136,7 @@ def analyze(text: str) -> dict:
     return {
         "ascii_traces":       ascii_traces,
         "regular_traces":     regular_traces,
+        "nnbsp_traces":       nnbsp_traces,
         "ai_tools_mentioned": mentioned,
         "any_ai_mentioned":   any_ai_mentioned,
         "verdict":            verdict,
@@ -156,6 +162,7 @@ def print_report(result: dict, label: str = "input") -> None:
     print(f"\n-- Digital Traces ({label})")
     print(f"  ASCII straight quotes : {result['ascii_traces']:>5}   <- potential AI traces")
     print(f"  Curly/typographic     : {result['regular_traces']:>5}   <- human/word-processor")
+    print(f"  No-Break Spaces (U+202F): {result['nnbsp_traces']:>5}   <- potential AI traces")
     print()
     for tool, detected in result["ai_tools_mentioned"].items():
         print(f"  {tool:20s}: {'Yes' if detected else 'No'}")

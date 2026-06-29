@@ -37,3 +37,9 @@ Well, could you take a closer look at the javascript file(js-script.js)? This is
                     'llamaMetaDetected': _0xf333cc ? 'Yes' : 'No',
                     'copilotDetected': _0x76a5c7 ? _0x4fbf36(0x14a) : 'No'
                 }),
+
+
+
+I also want to check for this Unicode character: No-Break Space (NNBSP, U+202F). It is believed to be a watermark of llm generated text of certain models as given in this article: https://windowsforum.com/threads/unveiling-hidden-unicode-characters-in-openais-chatgpt-models-the-invisible-watermark-debate.361510/
+
+I want a count of this No-Break Space (NNBSP, U+202F) to be added in the digital traces processing. 
