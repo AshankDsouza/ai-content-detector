@@ -15,7 +15,7 @@ import re
 import argparse
 import statistics
 
-from digital_traces import analyze as digital_traces
+from detection_methods.digital_traces_detection import analyze as digital_traces
 
 
 # ─────────────────────────────────────────────────────────────────────────────
