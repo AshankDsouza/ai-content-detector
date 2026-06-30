@@ -66,6 +66,7 @@ def init_db():
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS submissions (
                 id                  TEXT PRIMARY KEY,
+                creator_id          TEXT NOT NULL,
                 submitted_at        TEXT NOT NULL,
                 text_preview        TEXT,
                 word_count          INTEGER,
@@ -193,9 +194,14 @@ def submit():
         return jsonify({"error": "Models are still loading. Please retry shortly."}), 503
 
     body = request.get_json(silent=True)
-    if not body or "text" not in body:
-        return jsonify({"error": "Request body must be JSON with a 'text' field."}), 400
+    if not body or "text" not in body or "creator_id" not in body:
+        return jsonify({
+            "error": "Request body must contain 'text' and 'creator_id'."
+        }), 400
+    creator_id = body["creator_id"].strip()
 
+    if not creator_id:
+        return jsonify({"error": "'creator_id' must not be empty."}), 400
     text = body["text"].strip()
     if not text:
         return jsonify({"error": "'text' must not be empty."}), 400
@@ -225,12 +231,12 @@ def submit():
     db = get_db()
     db.execute(
         """INSERT INTO submissions
-               (id, submitted_at, text_preview, word_count,
+               (id, creator_id, submitted_at, text_preview, word_count,
                 cnn_score, rf_score, ensemble_score,
                 attribution, confidence, transparency_label, status)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
         (
-            submission_id, submitted_at, text_preview, word_count,
+            submission_id, creator_id, submitted_at, text_preview, word_count,
             result["cnn_score"], result["rf_score"], result["ensemble_score"],
             attribution, result["confidence"],
             transparency_label, "decided",
@@ -250,6 +256,7 @@ def submit():
         "transparency_label": transparency_label,
         "warning_report": warning_report,
         "submission_id": submission_id,
+        "creator_id": creator_id,
     }), 200
 
 
@@ -330,6 +337,7 @@ def audit_log():
         """
         SELECT
             s.id               AS submission_id,
+            s.creator_id,
             s.submitted_at,
             s.text_preview,
             s.word_count,

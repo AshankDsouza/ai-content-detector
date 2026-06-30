@@ -47,27 +47,41 @@ Submit a piece of text for attribution analysis.
 
 **Request**
 ```json
-{ "text": "Your poem, story excerpt, or blog post goes here…" }
-```
+{
+    "creator_id": "user-123",
+    "text": "Your poem, story excerpt, or blog post goes here..."
+}```
 
 - `text` must be a non-empty string of at least 20 words.
 
 **Response `200`**
 ```json
 {
-  "submission_id": "a1b2c3d4-…",
-  "submitted_at": "2026-06-28T10:00:00+00:00",
-  "word_count": 142,
-  "scores": {
-    "cnn": 82.3,
-    "random_forest": 76.1,
-    "ensemble": 79.2
-  },
-  "attribution": "ai",
-  "confidence": 0.584,
-  "transparency_label": "Likely AI-generated",
-  "status": "decided"
+    "confidence_score": 100,
+    "creator_id": "user0233",
+    "result": "failed",
+    "submission_id": "58a4cc6f-e141-4f4e-a0f3-75df387d4e04",
+    "transparency_label": "High-confidence AI-generated",
+    "warning_report": {
+        "digital_trace_report": {
+            "ascii_traces": 0,
+            "nnbsp_traces": 0,
+            "regular_traces": 0,
+            "verdict": "green"
+        },
+        "stylometric_report": {
+            "ai_phrase_count": 0,
+            "ai_phrases_found": [],
+            "avg_sent_len": 21.2,
+            "score": 35,
+            "sent_len_stdev": 6.5,
+            "sentence_count": 20,
+            "type_token_ratio": 0.548,
+            "word_count": 425
+        }
+    }
 }
+
 ```
 
 
@@ -121,6 +135,12 @@ Contest a classification decision. The submission status is updated to `under_re
 | 400 | Missing or empty `reasoning` field |
 | 404 | `submission_id` not found |
 
+Bad response: 
+
+{
+"error": "Request body must contain 'text' and 'creator_id'."
+}
+
 ---
 
 ### `GET /log`
@@ -137,34 +157,31 @@ Return the full structured audit log. Each entry includes the original decision 
 **Response `200`**
 ```json
 {
-  "total_returned": 3,
-  "limit": 100,
-  "offset": 0,
-  "entries": [
-    {
-      "submission_id": "a1b2c3d4-…",
-      "submitted_at": "2026-06-28T10:00:00+00:00",
-      "text_preview": "The morning light crept through the shutters…",
-      "word_count": 142,
-      "signals": {
-        "cnn_score": 82.3,
-        "rf_score": 76.1,
-        "ensemble_score": 79.2
-      },
-      "attribution": "ai",
-      "confidence": 0.584,
-      "transparency_label": "Likely AI-generated",
-      "status": "under_review",
-      "appeals": [
-        {
-          "appeal_id": "f9e8d7c6-…",
-          "appealed_at": "2026-06-28T10:05:00+00:00",
-          "creator_reasoning": "This poem was written by hand over three drafts…"
+    "confidence_score": 100,
+    "creator_id": "user0233",
+    "result": "failed",
+    "submission_id": "58a4cc6f-e141-4f4e-a0f3-75df387d4e04",
+    "transparency_label": "High-confidence AI-generated",
+    "warning_report": {
+        "digital_trace_report": {
+            "ascii_traces": 0,
+            "nnbsp_traces": 0,
+            "regular_traces": 0,
+            "verdict": "green"
+        },
+        "stylometric_report": {
+            "ai_phrase_count": 0,
+            "ai_phrases_found": [],
+            "avg_sent_len": 21.2,
+            "score": 35,
+            "sent_len_stdev": 6.5,
+            "sentence_count": 20,
+            "type_token_ratio": 0.548,
+            "word_count": 425
         }
-      ]
     }
-  ]
 }
+
 ```
 
 ---
@@ -180,25 +197,29 @@ Each submission passes through two independent classifiers:
 | CNN | Conv1D → Dense → Sigmoid | probability ∈ [0, 1] |
 | Random Forest | 100 trees, Gini criterion | probability ∈ [0, 1] |
 
-The **ensemble score** is the average of the two raw probabilities, then multiplied by 100 for display (0 = human, 100 = AI).
+The **ensemble score** ensemble_prob =
+0.75 * cnn +
+0.25 * rf
 
-The **confidence** value is derived from the distance of the ensemble probability from the decision boundary (0.5):
+The main signal will be combined like this:
+ML Model score: 0.75 weightage for the CNN's score and 0.25 weigtage for the random forest's score. So, ensemble will be 0.75*CNN + 0.25*RF.
 
-```
-confidence = |ensemble_prob − 0.5| × 2
-```
+Output: score 0-100 where 0 = certainly human, 100 = certainly AI.
+A false positive (labeling a human's work as AI-generated) is worse than a false negative on a writing platform.
 
-This maps linearly:
-- `ensemble_prob = 0.50` → `confidence = 0.00` (maximally uncertain)
-- `ensemble_prob = 0.75` → `confidence = 0.50`
-- `ensemble_prob = 1.00` → `confidence = 1.00` (fully certain)
+Verdict will be a "AI generated" if the final score is 80 and above. If the score is 79 and below it will be marked as "Human generated". If the score is 75 from the classical models and the digital trace comes out as red then we mark the verdict as "AI generated" despite the score being 75. 
+
+The warning section will have the report from the digital trace(if the signal is red) and the stylometric analysis(if the signal is failing). The stylometric analysis will otherwise not show up. 
 
 ###  Transparency labels:
 
-High-confidence AI-generated: whenever the verdict from above is "AI generated". 
-High-confidence human-generated: whenever the ensemble score of the classical models are anything below 25 and the signal from the digital trace is green.
 
-Uncertain: whenever it is not High-confidence human-generated and it is not High-confidence AI-generated.
+| Transparency Label                  | When shown                                                    | Decision logic                                                     | Purpose                                                                                   |
+| ----------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| **High-confidence AI-generated**    | The detector is confident the content is AI generated.        | Ensemble score ≥ 80 OR ensemble score ≥ 75 AND Digital Trace = Red | Used only when multiple signals strongly indicate AI-generated content.                   |
+| **High-confidence human-generated** | The detector is confident the content was written by a human. | Ensemble score < 25 AND Digital Trace = Green                      | Prevents false positives by requiring both a very low ML score and no watermark evidence. |
+| **Uncertain**                       | Evidence is mixed or insufficient.                            | Any other combination of scores.                                   | Indicates that neither AI nor human authorship can be stated with high confidence.        |
+
 
 ### Why these thresholds are meaningful
 
@@ -364,3 +385,45 @@ I planned to have two signals which are complimentary(stylometric measures and m
 During the implementation I had also clubbed the digital trace detection and stylometric together since they don't have heavy processing but later decided that they pretty distinct approaches and need to have their own category. 
 
 
+## Architecture Overview
+
+The API processes every submission through a multi-stage attribution pipeline.
+
+                +----------------+
+                | POST /submit   |
+                +-------+--------+
+                        |
+                        v
+              Input Validation
+                        |
+                        v
+          Feature Extraction (spaCy +
+            TextDescriptives metrics)
+                        |
+                        +--------------------+
+                        |                    |
+                        v                    v
+                 CNN Classifier      Random Forest
+                        |                    |
+                        +---------+----------+
+                                  |
+                    Weighted Ensemble
+                  (75% CNN, 25% RF)
+                                  |
+                                  v
+                     Digital Trace Detection
+                                  |
+                                  v
+                    Stylometric Heuristics
+                                  |
+                                  v
+               Verdict + Confidence Score
+                                  |
+                                  v
+              Transparency Label Generation
+                                  |
+                                  v
+               SQLite Audit Log Storage
+                                  |
+                                  v
+                  JSON API Response
