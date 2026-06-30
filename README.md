@@ -1,3 +1,19 @@
+## Signals
+The signals we will use are: stylometric hueristics and ml model predicting. 
+
+### Digital tracing-watermark detection:
+
+This is a detection method which is based on the assumption that ai uses certain unicode/ascii characters that humans would not use due to it being invisble to human being. 
+
+### Classical Classification ML Models:
+
+The ml models are trained on patterns and stylometric scores of ai vs human text. Hence, they measure patterns and stylometric features of text to predict if it is ai generated or not. Two algorithms are used: CNN and decision tree. 
+
+### Stylometric Heuristics:
+
+The stylometric heuristics are features of text that are known to be different between ai and human generated text in terms of uniformity, punctuation density and sentence structure. 
+
+
 # AI Text Detector — REST API
 
 A Flask-based REST API that attributes text content as AI-generated or human-written using an ensemble of a CNN and Random Forest classifier, with confidence scoring, rate limiting, an appeals workflow, and a full audit log.
@@ -54,6 +70,8 @@ Submit a piece of text for attribution analysis.
 }
 ```
 
+
+
 **Error responses**
 
 | Status | Cause |
@@ -62,6 +80,17 @@ Submit a piece of text for attribution analysis.
 | 422 | Fewer than 20 words |
 | 429 | Rate limit exceeded |
 | 503 | Models still loading |
+
+Rate limit evidence:
+![Alt text](image.png)
+
+429 TOO MANY REQUESTS:
+
+<!doctype html>
+<html lang=en>
+<title>429 Too Many Requests</title>
+<h1>Too Many Requests</h1>
+<p>10 per 1 minute</p>
 
 ---
 

@@ -246,9 +246,10 @@ def submit():
 
     return jsonify({
         "result": "failed" if is_ai else "passed",
-        "score": round(result["ensemble_score"]),
+        "confidence_score": round(result["ensemble_score"]),
         "transparency_label": transparency_label,
         "warning_report": warning_report,
+        "submission_id": submission_id,
     }), 200
 
 
