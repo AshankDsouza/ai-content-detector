@@ -133,9 +133,8 @@ def print_report(dt: dict, st: dict) -> None:
     print("\n== Method 1: Digital Traces =====================================")
     print(f"  ASCII straight quotes  : {dt['ascii_traces']:>5}   <- potential AI traces")
     print(f"  Curly/typographic      : {dt['regular_traces']:>5}   <- human/word-processor")
-    print()
-    for tool, found in dt["ai_tools_mentioned"].items():
-        print(f"  {tool:20s}: {'Yes' if found else 'No'}")
+    if "nnbsp_traces" in dt:
+        print(f"  NNBSP characters       : {dt['nnbsp_traces']:>5}   <- non-breaking space (AI trace)")
     print(f"\n  Verdict: {color}{_DT_LABEL[v]}{_RESET}")
 
     score = st["score"]
@@ -172,7 +171,7 @@ def main() -> None:
     if args.text:
         text = args.text
     else:
-        with open(args.file, encoding="utf-6", errors="replace") as fh:
+        with open(args.file, encoding="utf-8", errors="replace") as fh:
             text = fh.read()
 
     if not text.strip():

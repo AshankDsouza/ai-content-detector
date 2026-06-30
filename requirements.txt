@@ -7,7 +7,7 @@
 flask>=3.0.0
 flask-limiter>=3.7.0
 spacy==3.7.5
-textdescriptives==2.8.4
+textdescriptives==2.8.2
 kagglehub==1.0.2
 scikit-learn==1.9.0
 tensorflow-macos==2.16.2   # Mac Apple-Silicon; replace with tensorflow==2.16.2 on other platforms

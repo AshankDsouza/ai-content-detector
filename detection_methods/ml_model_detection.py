@@ -25,6 +25,9 @@ import textdescriptives as td
 
 MODELS_DIR = "models"
 
+CNN_WEIGHT = 0.75
+RF_WEIGHT = 0.25
+
 
 def load_artifacts(model_type: str):
     scaler       = joblib.load(os.path.join(MODELS_DIR, "scaler.joblib"))
@@ -65,7 +68,11 @@ def predict_text(text: str, nlp, scaler, feature_cols, cnn, rf, model_type: str)
         results["rf"] = round(prob_rf * 100, 1)
 
     if model_type == "both" and cnn is not None and rf is not None:
-        results["ensemble"] = round((results["cnn"] + results["rf"]) / 2, 1)
+        results["ensemble"] = round(
+            CNN_WEIGHT * results["cnn"] +
+            RF_WEIGHT * results["rf"],
+            1,
+        )
 
     return results
 

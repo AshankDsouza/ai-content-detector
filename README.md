@@ -164,19 +164,12 @@ This maps linearly:
 - `ensemble_prob = 0.75` → `confidence = 0.50`
 - `ensemble_prob = 1.00` → `confidence = 1.00` (fully certain)
 
-### Transparency labels
+###  Transparency labels:
 
-Labels are tied to the ensemble score (0–100) with thresholds that reflect genuine uncertainty. A score of 51 and a score of 90 are semantically very different:
+High-confidence AI-generated: whenever the verdict from above is "AI generated". 
+High-confidence human-generated: whenever the ensemble score of the classical models are anything below 25 and the signal from the digital trace is green.
 
-| Score range | Transparency label |
-|-------------|-------------------|
-| ≥ 90 | Almost certainly AI-generated |
-| 75 – 89 | Likely AI-generated |
-| 60 – 74 | Possibly AI-generated — leaning AI |
-| 40 – 59 | Uncertain — could be AI or human |
-| 25 – 39 | Possibly human-written — leaning human |
-| 10 – 24 | Likely human-written |
-| < 10 | Almost certainly human-written |
+Uncertain: whenever it is not High-confidence human-generated and it is not High-confidence AI-generated.
 
 ### Why these thresholds are meaningful
 
@@ -297,3 +290,48 @@ ai_text_detector/
     ├── scaler.joblib
     └── feature_cols.joblib
 ```
+
+
+## AI Usage:
+
+### Instance #1
+
+What human directed AI to do: write the signal for ai detection: stylometric measures 
+
+What ai did: wrote the code for both watermark detection and stylometric detection. watermark detection was already implmented. the duplicated it in this new file instead of calling it from an import. 
+
+What I did instead: I refactored the duplication. 
+
+### Instance #2
+
+What human directed AI to do: write application that gives a score and loads the models to generate the score. 
+
+What ai did: wrote the code that loads the models despite the code existing already in a file.  
+
+What I did instead: I refactored the duplication. 
+
+
+## Known Limitations
+
+The limitations can be specified by signal.
+
+Watermark signal relies on certain unicode characters or ascii characters which are unperceptable to humans. Now, typographers use these characters and so there is no guarentee that only ai generates such characters. Even if the content is ai generated it is very trivial to fix these watermarks with a simple search and replace. 
+
+Also, certain watermarks are restricted only to certain models.  
+
+So, both false positives and false negatives are possible. 
+
+The stylometric detection and the ml model prediction which are both ultimately relying on text patterns of humans vs ai both have the problem that they rely on certain patterns which may not pan out in all cases. 
+
+Content written by humans (eg. content written by well educated professors) can sometimes have the same patterns and some human text has the same cadence, uniformity as ai generated text. This will result in false positives. 
+
+So content written by professionals on certain bland topics can sometimes be labelled as ai generated. 
+
+
+## Spec reflection 
+
+I planned to have two signals which are complimentary(stylometric measures and ml model prediction) But ended up with three with the watermark-digital tracing detection being genuinely complimentary with the other two but the other two relying on the same underlying principle. 
+
+During the implementation I had also clubbed the digital trace detection and stylometric together since they don't have heavy processing but later decided that they pretty distinct approaches and need to have their own category. 
+
+
