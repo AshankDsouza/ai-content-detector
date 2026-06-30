@@ -24,6 +24,7 @@ from flask import Flask, request, jsonify, g
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from detection_methods.digital_traces_detection import analyze as analyze_digital_traces
+from detection_methods.stylometric_detection import stylometric as analyze_stylometric
 
 # ── Config ────────────────────────────────────────────────────────────────────
 MODELS_DIR = "models"
@@ -132,51 +133,47 @@ def run_inference(text: str) -> dict:
 
     prob_cnn = float(_cnn.predict(feats_scaled.reshape(1, -1, 1), verbose=0)[0][0])
     prob_rf = float(_rf.predict_proba(feats_scaled)[0][1])
-    ensemble_prob = (prob_cnn + prob_rf) / 2.0
+    ensemble_prob = 0.75 * prob_cnn + 0.25 * prob_rf
 
     cnn_score = round(prob_cnn * 100, 1)
     rf_score = round(prob_rf * 100, 1)
     ensemble_score = round(ensemble_prob * 100, 1)
 
-    # Confidence: distance from decision boundary (0.5), mapped to [0, 1].
-    # A score of 0.51 → confidence 0.02; a score of 0.95 → confidence 0.90.
     confidence = round(abs(ensemble_prob - 0.5) * 2, 4)
-
-    attribution = "ai" if ensemble_prob >= 0.5 else "human"
-    label = build_transparency_label(ensemble_score)
 
     return {
         "cnn_score": cnn_score,
         "rf_score": rf_score,
         "ensemble_score": ensemble_score,
-        "attribution": attribution,
         "confidence": confidence,
-        "transparency_label": label,
     }
 
 
-def build_transparency_label(score: float) -> str:
-    """
-    Produce a user-facing label that reflects genuine uncertainty.
-    Score is 0–100 where 0 = human, 100 = AI.
+STYLOMETRIC_FAIL_THRESHOLD = 50
 
-    Thresholds are deliberately asymmetric around 50 so that a score of 51
-    yields a very different (weaker) label than a score of 80 or 95.
-    """
-    if score >= 90:
-        return "Almost certainly AI-generated"
-    elif score >= 75:
-        return "Likely AI-generated"
-    elif score >= 60:
-        return "Possibly AI-generated — leaning AI"
-    elif score >= 40:
-        return "Uncertain — could be AI or human"
-    elif score >= 25:
-        return "Possibly human-written — leaning human"
-    elif score >= 10:
-        return "Likely human-written"
-    else:
-        return "Almost certainly human-written"
+
+def determine_verdict(ensemble_score: float, trace_verdict: str) -> str:
+    """Return 'ai' or 'human' per planning.md thresholds."""
+    if ensemble_score >= 80:
+        return "ai"
+    if ensemble_score >= 75 and trace_verdict == "red":
+        return "ai"
+    return "human"
+
+
+def build_transparency_label(ensemble_score: float, trace_verdict: str, is_ai: bool) -> str:
+    if is_ai:
+        return "High-confidence AI-generated"
+    if ensemble_score < 25 and trace_verdict == "green":
+        return "High-confidence human-generated"
+    return "Uncertain"
+
+
+def build_warning_report(trace: dict, styl: dict) -> dict:
+    return {
+        "digital_trace_report": trace,
+        "stylometric_report": styl,
+    }
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -190,8 +187,7 @@ def submit():
       { "text": "<string>" }
 
     Response (JSON):
-      submission_id, scores (cnn/rf/ensemble), attribution, confidence,
-      transparency_label, status
+      result, score, transparency_label, warning_report
     """
     if not _models_ready:
         return jsonify({"error": "Models are still loading. Please retry shortly."}), 503
@@ -209,9 +205,17 @@ def submit():
     try:
         result = run_inference(text)
         trace_report = analyze_digital_traces(text)
+        stylometric_report = analyze_stylometric(text)
     except Exception as exc:
         logger.exception("Inference failed for new submission")
         return jsonify({"error": f"Inference error: {exc}"}), 500
+
+    attribution = determine_verdict(result["ensemble_score"], trace_report["verdict"])
+    is_ai = attribution == "ai"
+    transparency_label = build_transparency_label(
+        result["ensemble_score"], trace_report["verdict"], is_ai
+    )
+    warning_report = build_warning_report(trace_report, stylometric_report)
 
     submission_id = str(uuid.uuid4())
     submitted_at = datetime.now(timezone.utc).isoformat()
@@ -228,32 +232,23 @@ def submit():
         (
             submission_id, submitted_at, text_preview, word_count,
             result["cnn_score"], result["rf_score"], result["ensemble_score"],
-            result["attribution"], result["confidence"],
-            result["transparency_label"], "decided",
+            attribution, result["confidence"],
+            transparency_label, "decided",
         ),
     )
     db.commit()
 
     logger.info(
-        "Submission %s | score=%.1f | attribution=%s | confidence=%.2f",
+        "Submission %s | score=%.1f | result=%s | label=%s",
         submission_id, result["ensemble_score"],
-        result["attribution"], result["confidence"],
+        "failed" if is_ai else "passed", transparency_label,
     )
 
     return jsonify({
-        "submission_id": submission_id,
-        "submitted_at": submitted_at,
-        "word_count": word_count,
-        "scores": {
-            "cnn": result["cnn_score"],
-            "random_forest": result["rf_score"],
-            "ensemble": result["ensemble_score"],
-        },
-        "attribution": result["attribution"],
-        "confidence": result["confidence"],
-        "transparency_label": result["transparency_label"],
-        "trace_detection_report": trace_report,
-        "status": "decided",
+        "result": "failed" if is_ai else "passed",
+        "score": round(result["ensemble_score"]),
+        "transparency_label": transparency_label,
+        "warning_report": warning_report,
     }), 200
 
 
@@ -398,7 +393,7 @@ def audit_log():
 # ── Entry point ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     print("initialising the rest api service")
-    #init_db()
-    #load_models()
+    init_db()
+    load_models()
     app.run(host="0.0.0.0", port=5001, debug=True)
     print("Service running on port 5001")
