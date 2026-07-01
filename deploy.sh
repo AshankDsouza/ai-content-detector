@@ -14,19 +14,19 @@ set -euo pipefail
 # will have a directory like `ai-content-detector` which is the repo name. If it doesn't exist, it will be cloned.
 
 # clones repo if it doesn't exist, otherwise pulls latest changes
-if [ ! -d "ai-content-detector" ]; then
-    git clone https://github.com/AshankDsouza/ai-content-detector
-fi
-cd ai-content-detector
+# if [ ! -d "ai-content-detector" ]; then
+#     git clone https://github.com/AshankDsouza/ai-content-detector
+# fi
+# cd ai-content-detector
 git pull origin master
 
-docker compose build
-docker compose up -d
+sudo docker compose build
+sudo docker compose up -d
 
 echo "All services are running."
-docker compose ps
+sudo docker compose ps
 
-# nginx is published on localhost:80, so cloudflared can reach it directly on the host.
+# nginx is catching requests on port 85, so cloudflared can reach it directly on the host.
 echo ""
 echo "Starting cloudflared tunnel..."
-cloudflared tunnel run ai-generated-text-check-app
+cloudflared tunnel run ai-check-app-azure-vm
