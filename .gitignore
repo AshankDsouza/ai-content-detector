@@ -27,3 +27,4 @@ models/
 
 audit.db
 
+secret_key.txt
