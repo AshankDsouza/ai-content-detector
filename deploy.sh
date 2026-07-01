@@ -35,5 +35,4 @@ echo ""
 echo "Starting cloudflared tunnel..."
 
 
-cloudflared tunnel run ai-check-app-azure-vm
 
