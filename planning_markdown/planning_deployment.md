@@ -3,56 +3,78 @@
                           ▼
              https://ai-generated-text.tech
                           │
-                    Cloudflare Tunnel
+                    Cloudflare Tunnel (bare metal)
                           │
                           ▼
-                  Nginx (localhost:80)
+                  Nginx (container, :80)
                   ┌──────────┴──────────┐
                   │                     │
                   ▼                     ▼
-            React/Vue/HTML         Flask API
-          localhost:3000       localhost:5001
+        Static frontend (bind mount)  Flask API (container, :5001)
 
-Features:
-1. we run cloudfare at localhost:80
-2.  nginx: There is no need to have a local.nginx since we are hosting it on this laptop itself. keep nginx.conf, delete the other. 
-the nginx will match localhost:80/api ( https://ai-generated-text.tech/api) to localhost:5001 and localhost:80/( https://ai-generated-text.tech/ ) to localhosta:3000
+nginx and backend run as Docker Compose services on one shared network,
+defined in ./docker-compose.yml. cloudflared runs directly on the VM
+(not containerized) and reaches nginx over localhost:80, since nginx's
+port is published to the host. There is no more host-run Flask process
+or http.server — only cloudflared stays bare metal.
 
-it can be something like this:
+## One-time VM setup
+1. Install Docker + Docker Compose plugin on the Azure VM.
+2. `git clone` this repo onto the VM.
+3. Copy the trained model artifacts into `./models/` (gitignored — not
+   in version control, so they must be transferred separately, e.g.
+   `scp -r models/ user@vm:~/ai_text_detector/`).
+4. Copy `.env` (KAGGLE_API_TOKEN etc.) onto the VM — also gitignored.
+5. Install `cloudflared` on the VM and set up the tunnel credentials:
+   `cloudflared tunnel login` + `cloudflared tunnel create ai-generated-text-check-app`
+   (or copy `~/.cloudflared/` from the existing machine). The
+   `config.yml` ingress can keep pointing at `http://localhost:80`
+   since cloudflared runs on the host, not in the Docker network:
 
-server {
-    listen 80;
-    server_name ai-generated-text.tech;
+   ```yaml
+   tunnel: ai-generated-text-check-app
+   credentials-file: /home/<user>/.cloudflared/<tunnel-id>.json
 
-    # Frontend
-    location / {
-        proxy_pass http://localhost:3000;
-    }
+   ingress:
+     - hostname: ai-generated-text.tech
+       service: http://localhost:80
+     - hostname: www.ai-generated-text.tech
+       service: http://localhost:80
+     - service: http_status:404
+   ```
+6. `touch audit.db` (so the bind mount attaches to a file, not a
+   directory Docker would otherwise create).
 
-    # Backend
-    location /api/ {
-        proxy_pass http://localhost:5001/;
+## Deploy / redeploy
+```
+git pull
+./deploy.sh
+```
+`deploy.sh` runs `docker compose build && docker compose up -d` for
+nginx/backend, then starts `cloudflared tunnel run
+ai-generated-text-check-app` in the foreground. Rebuilding only touches
+the images whose inputs changed, so a backend-only code change never
+recreates nginx.
 
-        proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-3. run nginx on port 80 through docker containers
+## Why this fixes the versioning/breakage issues
+- Backend Python deps (spacy, tensorflow, keras, etc.) are pinned and
+  installed inside `backend.Dockerfile` from `requirements.linux.txt`
+  (the Linux/CPU equivalent of `requirements.txt`, which pins
+  `tensorflow-macos` for local Mac development) — no drift between
+  what's on the VM and what's declared in the repo.
+- The frontend is plain static HTML/JS with no build step, so nginx
+  serves `./frontend` directly via a read-only bind mount — editing a
+  file and restarting nginx is enough, no separate Node process to
+  keep alive.
+- nginx proxies `/api/` to `http://backend:5001` using Docker's
+  built-in service-name DNS instead of `host.docker.internal` or a
+  hardcoded port, so container restarts/IP changes never break routing.
+- Both containers have `restart: unless-stopped`, so a VM reboot brings
+  nginx/backend back without manual intervention; cloudflared needs to
+  be re-run or set up as a systemd service (see below) to survive a
+  reboot too.
 
-docker build -t ai-generated-text-nginx:latest ./nginx
-
-docker run -d \
-    --name nginx \
-    -p 80:80 \
-    --restart unless-stopped \
-    ai-generated-text-nginx:latest
-
-4. run the cloudfare
-
-# cloudfare config files stored at /Users/ashankdsouza/.cloudflared
-# run cloudflared tunnel in the foreground
-cloudflared tunnel run ai-generated-text-check-app
-
-
-
+## Optional: keep cloudflared running across reboots
+Since cloudflared is bare metal now, use `cloudflared service install`
+(installs a systemd unit on Linux) instead of relying on `deploy.sh`'s
+foreground process staying alive in a terminal.

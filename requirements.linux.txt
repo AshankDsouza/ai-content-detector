@@ -1,0 +1,17 @@
+# Linux/Docker build of requirements.txt — tensorflow-macos swapped for tensorflow.
+# Keep versions in sync with requirements.txt when bumping dependencies.
+flask>=3.0.0
+flask-limiter>=3.7.0
+spacy==3.7.5
+textdescriptives==2.8.2
+kagglehub==1.0.2
+scikit-learn==1.9.0
+tensorflow==2.16.2
+keras==3.15.0
+joblib==1.5.3
+pandas==3.0.3
+numpy==1.26.4
+scipy==1.11.4
+click
+pypdf==4.3.1
+mammoth==1.9.0

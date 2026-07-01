@@ -1,0 +1,26 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend.Dockerfile
+    container_name: backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./models:/app/models:ro
+      - ./audit.db:/app/audit.db
+    expose:
+      - "5001"
+
+  nginx:
+    build:
+      context: ./nginx
+    container_name: nginx
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro

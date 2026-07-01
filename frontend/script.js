@@ -49,7 +49,7 @@ verifyBtn.addEventListener('click', async () => {
       return;
     }
 
-    resultEl.textContent = `${data.transparency_label} (confidence: ${data.confidence_score}%)`;
+    resultEl.textContent = `${data.transparency_label} (confidence of it being AI-generated: ${data.confidence_score}%)`;
   } catch (err) {
     resultEl.textContent = 'Could not reach the analysis service.';
   } finally {
