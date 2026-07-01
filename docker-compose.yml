@@ -5,8 +5,7 @@ services:
       dockerfile: backend.Dockerfile
     container_name: backend
     restart: unless-stopped
-    env_file:
-      - .env
+
     volumes:
       - ./models:/app/models:ro
       - ./audit.db:/app/audit.db
