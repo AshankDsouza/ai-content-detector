@@ -18,7 +18,7 @@ set -euo pipefail
 #     git clone https://github.com/AshankDsouza/ai-content-detector
 # fi
 # cd ai-content-detector
-git pull origin master
+sudo git pull origin master
 
 
 sudo docker compose down
