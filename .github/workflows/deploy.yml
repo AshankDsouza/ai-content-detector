@@ -19,6 +19,6 @@ jobs:
           script: |
             set -euo pipefail
             cd /home/azureuser/deployed/ai-content-detector
-            sudo bash deploy.sh
+            bash deploy.sh
             cloudflared tunnel run ai-check-app-azure-vm
 
