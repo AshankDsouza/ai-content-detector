@@ -488,3 +488,7 @@ Average submission character count, split by verdict (`pass` = human-attributed,
     }
 }
 ```
+
+
+## Website 
+The website can be accessed here: https://www.ai-generated-text.tech/
