@@ -29,6 +29,7 @@ sudo docker compose up -d
 echo "All services are running."
 sudo docker compose ps
 
+
 # nginx is catching requests on port 85, so cloudflared can reach it directly on the host.
 echo ""
 echo "Starting cloudflared tunnel..."
