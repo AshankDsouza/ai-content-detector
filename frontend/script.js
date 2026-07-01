@@ -1,6 +1,6 @@
 const MIN_CHARACTERS = 50;
-const API_URL = 'http://localhost:5001/submit';
 
+const SUBMIT_API_URL = "/api/submit";
 const verifyBtn = document.getElementById('verify-btn');
 const inputText = document.getElementById('input-text');
 const resultEl = document.getElementById('result');
@@ -33,7 +33,7 @@ verifyBtn.addEventListener('click', async () => {
   resultEl.textContent = 'Analyzing...';
 
   try {
-    const response = await fetch(API_URL, {
+    const response = await fetch(SUBMIT_API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
