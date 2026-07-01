@@ -8,7 +8,7 @@ venv/
 .env
 
 # Trained model artifacts
-models/
+# models/
 
 # Kaggle datasets
 ~/.cache/kagglehub/
