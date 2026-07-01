@@ -1,0 +1,22 @@
+name: Deploy to Azure VM
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH and redeploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.AZURE_VM_HOST }}
+          username: ${{ secrets.AZURE_VM_USER }}
+          key: ${{ secrets.AZURE_VM_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            cd /home/azureuser/deployed/ai-content-detector
+            sudo bash deploy.sh
