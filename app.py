@@ -2,9 +2,12 @@
 AI Text Detector — REST API
 
 Endpoints:
-  POST /submit           Submit text for attribution analysis
-  POST /appeal/<id>      Contest a classification decision
-  GET  /log              View the structured audit log
+  POST /submit                  Submit text for attribution analysis
+  POST /appeal/<id>              Contest a classification decision
+  GET  /log                      View the structured audit log
+  GET  /stats/detection-split    AI vs human submission counts
+  GET  /stats/appeal-rates       Appeal counts per transparency label
+  GET  /stats/char-count         Average submission length for pass vs fail
 """
 
 import os
@@ -86,6 +89,7 @@ def init_db():
                 submitted_at        TEXT NOT NULL,
                 text_preview        TEXT,
                 word_count          INTEGER,
+                char_count          INTEGER,
                 cnn_score           REAL,
                 rf_score            REAL,
                 ensemble_score      REAL,
@@ -103,6 +107,11 @@ def init_db():
                 FOREIGN KEY(submission_id) REFERENCES submissions(id)
             );
         """)
+        # Migration for databases created before char_count existed.
+        try:
+            conn.execute("ALTER TABLE submissions ADD COLUMN char_count INTEGER")
+        except sqlite3.OperationalError:
+            pass
 
 
 # ── Model Singletons ──────────────────────────────────────────────────────────
@@ -243,16 +252,17 @@ def submit():
     submitted_at = datetime.now(timezone.utc).isoformat()
     text_preview = text[:200] + ("…" if len(text) > 200 else "")
     word_count = len(text.split())
+    char_count = len(text)
 
     db = get_db()
     db.execute(
         """INSERT INTO submissions
-               (id, creator_id, submitted_at, text_preview, word_count,
+               (id, creator_id, submitted_at, text_preview, word_count, char_count,
                 cnn_score, rf_score, ensemble_score,
                 attribution, confidence, transparency_label, status)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
         (
-            submission_id, creator_id, submitted_at, text_preview, word_count,
+            submission_id, creator_id, submitted_at, text_preview, word_count, char_count,
             result["cnn_score"], result["rf_score"], result["ensemble_score"],
             attribution, result["confidence"],
             transparency_label, "decided",
@@ -412,6 +422,82 @@ def audit_log():
         "limit": limit,
         "offset": offset,
         "entries": result_list,
+    }), 200
+
+
+@app.route("/stats/detection-split", methods=["GET"])
+def stats_detection_split():
+    """Count of submissions attributed to AI vs human."""
+    db = get_db()
+    rows = db.execute(
+        "SELECT attribution, COUNT(*) AS count FROM submissions GROUP BY attribution"
+    ).fetchall()
+
+    split = {"ai": 0, "human": 0}
+    for r in rows:
+        if r["attribution"] in split:
+            split[r["attribution"]] = r["count"]
+
+    return jsonify({
+        "ai": split["ai"],
+        "human": split["human"],
+        "total": split["ai"] + split["human"],
+    }), 200
+
+
+@app.route("/stats/appeal-rates", methods=["GET"])
+def stats_appeal_rates():
+    """Appeal counts per transparency label."""
+    db = get_db()
+    rows = db.execute(
+        """
+        SELECT
+            s.transparency_label,
+            COUNT(DISTINCT s.id) AS total_submissions,
+            COUNT(DISTINCT a.submission_id) AS appealed_submissions
+        FROM submissions s
+        LEFT JOIN appeals a ON a.submission_id = s.id
+        GROUP BY s.transparency_label
+        """
+    ).fetchall()
+
+    labels = []
+    for r in rows:
+        total = r["total_submissions"]
+        appealed = r["appealed_submissions"]
+        labels.append({
+            "transparency_label": r["transparency_label"],
+            "total_submissions": total,
+            "appealed_submissions": appealed,
+            "appeal_rate": round(appealed / total, 4) if total else 0,
+        })
+
+    return jsonify({"labels": labels}), 200
+
+
+@app.route("/stats/char-count", methods=["GET"])
+def stats_char_count():
+    """Average submission character count for passed vs failed verdicts."""
+    db = get_db()
+    rows = db.execute(
+        """
+        SELECT attribution, AVG(char_count) AS avg_char_count, COUNT(*) AS count
+        FROM submissions
+        WHERE char_count IS NOT NULL
+        GROUP BY attribution
+        """
+    ).fetchall()
+
+    averages = {"pass": None, "fail": None}
+    counts = {"pass": 0, "fail": 0}
+    for r in rows:
+        key = "fail" if r["attribution"] == "ai" else "pass"
+        averages[key] = round(r["avg_char_count"], 1)
+        counts[key] = r["count"]
+
+    return jsonify({
+        "average_char_count": averages,
+        "submission_count": counts,
     }), 200
 
 

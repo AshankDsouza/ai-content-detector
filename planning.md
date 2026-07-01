@@ -90,3 +90,39 @@ Uncertain: whenever it is not High-confidence human-generated and it is not High
 1	Uncertainty representation is addressed — specific thresholds or score ranges are defined, not just "it will show a score."
 1	Transparency label variants are written out for at least the high-confidence AI, uncertain, and high-confidence human cases.
 1	Appeals workflow and at least two anticipated edge cases are described with enough specificity to be useful pre-work; an ## AI Tool Plan section identifies at least one milestone where AI tools will be used for code generation, specifying what spec sections and diagram will be provided as input.
+
+## AI Tool Plan 
+
+AI tools majorly Claude Code was used for the milestone " Implement the Production Layer".
+
+Since AI is very good for routine work and productionising systems I used it to developed the rate limiter, the audit/logging system and appeal system as well. 
+
+The prompt given as input was:
+
+"Rate Limiting: Implement rate limiting on your submission endpoint. Your README must document the limits you chose and your reasoning for those specific values.
+
+
+Audit Log: Every attribution decision — including confidence score, signals used, and any appeals — must be captured in a structured audit log. Document the log in your README (or via the GET /log output) with at least 3 entries visible."
+
+It generated the required code without much difficulty. 
+
+
+## Appeals workflow and edge cases
+
+### Workflow
+
+1. Creator submits `POST /appeal/<submission_id>` with `{"reasoning": "<string>"}` explaining why they believe the verdict is wrong.
+2. The submission's `status` flips from `decided` to `under_review` and an `appeals` row is recorded (id, submission_id, appealed_at, creator_reasoning), linked to the original `submissions` row via foreign key.
+3. A human reviewer pulls submissions with `status = under_review` (currently visible via `GET /log`'s joined output) and inspects the original text, the ensemble score, the individual CNN/RF scores, and the digital-trace/stylometric warning report.
+4. Reviewer records a decision — `upheld` (verdict stands) or `overturned` (verdict flipped) — which moves `status` from `under_review` to `resolved`, and the decision plus reviewer notes are appended to the same appeal row so it is visible in the audit log.
+5. The creator is notified of the outcome. If overturned, the transparency label and score shown to the creator are updated to reflect the corrected verdict; the audit log keeps both the original automated decision and the overturned outcome so the trail is never rewritten, only appended to.
+
+This closes the gap in the current implementation, where an appeal is recorded but never resolved (status only ever moves into `under_review`, never out of it).
+
+### Edge cases
+
+- **Duplicate/repeated appeals on the same submission:** A creator resubmits an appeal (or spams the endpoint) while the first is still `under_review`. The endpoint should reject a second appeal on a submission that is already `under_review` (or already `resolved`) with a 409, rather than silently inserting another `appeals` row, so reviewers don't see the same submission duplicated in their queue.
+- **Appeal on a submission near the decision boundary (score 75-80):** Because verdicts in this 75-79 band already depend on a secondary signal (digital-trace red flag) rather than the score alone, an appeal here should surface both the classical-model score and the digital-trace report to the reviewer explicitly, since overturning based on score alone would ignore the reason the verdict was flagged in the first place.
+- **Appeal after the underlying model/dataset has been updated:** If the model version used to score a submission is later retrained or replaced, an appeal on an old submission should be reviewed against the model version active at the time of the original decision (recorded per-submission), not re-scored with the current model — otherwise "overturned" outcomes become inconsistent across submissions decided under different model versions.
+- **High volume of appeals against one transparency label:** If appeals cluster heavily around one label (e.g. many `High-confidence AI-generated` appeals overturned), that is treated as a signal to revisit the 80-point threshold or model calibration rather than as isolated case-by-case errors — recorded as a follow-up in the audit log rather than resolved as a one-off appeal.
+

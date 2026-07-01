@@ -427,3 +427,64 @@ The API processes every submission through a multi-stage attribution pipeline.
                                   |
                                   v
                   JSON API Response
+
+
+
+## Analytics dashboard
+
+A read-only stats page at `frontend/stats.html`, linked from the "Submission stats" link in the main page footer. It calls three GET endpoints and renders them with Chart.js: a pie chart for the detection split, a bar chart for appeal rates per transparency label, and two tiles for average submission length.
+
+### `GET /stats/detection-split`
+
+Count of submissions attributed to AI vs human, across all decided submissions.
+
+**Response `200`**
+```json
+{
+    "ai": 5,
+    "human": 5,
+    "total": 10
+}
+```
+
+### `GET /stats/appeal-rates`
+
+Total submissions and appealed submissions per transparency label, with the appeal rate computed as `appealed_submissions / total_submissions`.
+
+**Response `200`**
+```json
+{
+    "labels": [
+        {
+            "transparency_label": "High-confidence AI-generated",
+            "total_submissions": 5,
+            "appealed_submissions": 1,
+            "appeal_rate": 0.2
+        },
+        {
+            "transparency_label": "High-confidence human-generated",
+            "total_submissions": 5,
+            "appealed_submissions": 0,
+            "appeal_rate": 0.0
+        }
+    ]
+}
+```
+
+### `GET /stats/char-count`
+
+Average submission character count, split by verdict (`pass` = human-attributed, `fail` = AI-attributed). Character count is stored per-submission at `/submit` time; submissions made before this field existed are excluded from the average rather than counted as zero.
+
+**Response `200`**
+```json
+{
+    "average_char_count": {
+        "pass": 842.3,
+        "fail": 1104.7
+    },
+    "submission_count": {
+        "pass": 5,
+        "fail": 4
+    }
+}
+```

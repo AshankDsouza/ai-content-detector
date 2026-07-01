@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Submission Stats — AI Text Detector</title>
+  <link rel="stylesheet" href="style.css?v=1782874596">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+</head>
+<body>
+  <main class="stats-container">
+    <a class="stats-back" href="index.html">&larr; Back to detector</a>
+    <h1>Submission Stats</h1>
+    <p id="stats-status" class="stats-status"></p>
+
+    <div class="stats-grid">
+      <div class="stats-card">
+        <h2>Detection split</h2>
+        <div class="pie-chart-wrap">
+          <canvas id="detection-split-chart"></canvas>
+        </div>
+      </div>
+
+      <div class="stats-card">
+        <h2>Appeal rates by transparency label</h2>
+        <canvas id="appeal-rates-chart"></canvas>
+      </div>
+
+      <div class="stats-card">
+        <h2>Average submission length</h2>
+        <div class="char-count-stats">
+          <div class="char-count-stat">
+            <div class="value" id="char-count-pass">—</div>
+            <div class="label">avg chars (passed)</div>
+          </div>
+          <div class="char-count-stat">
+            <div class="value" id="char-count-fail">—</div>
+            <div class="label">avg chars (failed)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <p>&copy;2026 by Ashank Dsouza. All rights reserved.</p>
+  </footer>
+
+  <script src="stats.js?v=1782874596"></script>
+</body>
+</html>

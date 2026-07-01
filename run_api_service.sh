@@ -17,6 +17,7 @@ kill -9 $(lsof -t -i:80) 2>/dev/null
 kill -9 $(lsof -t -i:3000) 2>/dev/null
 kill -9 $(lsof -t -i:5001) 2>/dev/null
 
+docker stop nginx 2>/dev/null
 
 # Stop/remove any previous nginx container
 
