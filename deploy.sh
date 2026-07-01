@@ -33,4 +33,7 @@ sudo docker compose ps
 # nginx is catching requests on port 85, so cloudflared can reach it directly on the host.
 echo ""
 echo "Starting cloudflared tunnel..."
+
+
 cloudflared tunnel run ai-check-app-azure-vm
+
