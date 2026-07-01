@@ -15,5 +15,6 @@ Using a combination of digital trace detection and differences between stylometr
 3. A credit line. Something like
 ©2026 by Ashank Dsouza. All rights reserved.
 
-4. The verify button should be disabled until the text box has content with minumum characters. The verify button should send an API request and it should autogenerate the creator_id. 
+4. The verify button should be disabled until the text box has content with minumum characters. The verify button should send an API request and it should autogenerate the creator_id. A warning should be displayed if this condition is not met. Make sure there is an event listenor that picks up if the content has been edited or not and updates the disabling or enabling of the verify button accordingly. 
 
+5. Make sure there is no CORs error. Can use a hack for now. 

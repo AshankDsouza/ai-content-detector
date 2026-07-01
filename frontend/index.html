@@ -10,14 +10,15 @@
   <main class="container">
     <h1>AI Text Detector</h1>
     <p class="description">
-      Using digital traces that LLM-generated content sometimes leaves behind, and ML models
-      trained to predict AI-generated content very accurately at a fraction of the
-      computational cost of new AI models.
+      Using a combination of digital trace detection and differences between stylometric
+      patterns of AI-generated content versus stylometric patterns of human-generated content,
+      we are able to make very accurate assessments of text being AI-generated or not.
     </p>
 
     <textarea id="input-text" placeholder="Paste or type your text here..." rows="12"></textarea>
 
-    <button id="analyze-btn">Analyze</button>
+    <button id="verify-btn" disabled>Verify</button>
+    <div id="warning" class="warning"></div>
 
     <div id="result"></div>
   </main>

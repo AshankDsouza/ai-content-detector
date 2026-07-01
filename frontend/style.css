@@ -58,6 +58,12 @@ button:hover {
   background: #333;
 }
 
+.warning {
+  color: #c0392b;
+  font-size: 0.9rem;
+  min-height: 20px;
+}
+
 #result {
   min-height: 24px;
   font-weight: 600;

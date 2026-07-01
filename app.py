@@ -46,6 +46,22 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
+# Temporary hack to allow the standalone frontend (served from a different
+# origin) to call this API. Replace with flask-cors + an allowlist later.
+@app.after_request
+def add_cors_headers(response):
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    return response
+
+
+@app.before_request
+def handle_preflight():
+    if request.method == "OPTIONS":
+        return "", 204
+
 # ── Database ──────────────────────────────────────────────────────────────────
 def get_db():
     if "db" not in g:
@@ -205,8 +221,8 @@ def submit():
     text = body["text"].strip()
     if not text:
         return jsonify({"error": "'text' must not be empty."}), 400
-    if len(text.split()) < 20:
-        return jsonify({"error": "Text must contain at least 20 words for a reliable analysis."}), 422
+    if len(text.split()) < 50:
+        return jsonify({"error": "Text must contain at least 50 words for a reliable analysis."}), 422
 
     try:
         result = run_inference(text)
