@@ -20,6 +20,8 @@ set -euo pipefail
 # cd ai-content-detector
 git pull origin master
 
+sudo pkill cloudflared
+
 sudo docker compose down
 
 sudo docker compose build
